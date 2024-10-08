@@ -13,7 +13,7 @@
 #include "mix_kernels_cuda.h"
 #include "version_info.h"
 
-#define VECTOR_SIZE (32 * 1024 * 1024)
+#define VECTOR_SIZE (256 * 1024 * 1024)
 
 int main(int argc, char* argv[]) {
     printf("mixbench (%s)\n", VERSION_INFO);
