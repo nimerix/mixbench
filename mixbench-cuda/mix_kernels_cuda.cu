@@ -11,8 +11,8 @@
 #include <math.h>
 #include "lcutil.h"
 
-#define ELEMENTS_PER_THREAD (8)
-#define FUSION_DEGREE (4)
+#define ELEMENTS_PER_THREAD (16)
+#define FUSION_DEGREE (8)
 
 template<class T>
 inline __device__ T conv_int(const int i){ return static_cast<T>(i); }
