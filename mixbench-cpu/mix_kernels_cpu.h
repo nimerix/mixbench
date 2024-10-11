@@ -7,6 +7,12 @@
 #ifndef _MIX_KERNELS_CPU_H_
 #define _MIX_KERNELS_CPU_H_
 
-void mixbenchCPU(double*, size_t);
+#if defined(_MSC_VER)
+  using omp_index_t = int64_t;
+#else
+  using omp_index_t = size_t;
+#endif
+
+void mixbenchCPU(double*, omp_index_t);
 
 #endif

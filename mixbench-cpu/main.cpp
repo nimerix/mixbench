@@ -11,6 +11,10 @@
 #include <iostream>
 #include <memory>
 
+#if defined(_MSC_VER)
+#include <malloc.h>
+#endif
+
 #include "mix_kernels_cpu.h"
 #include "version_info.h"
 
@@ -64,9 +68,22 @@ int main(int argc, char* argv[]) {
 
   const size_t VEC_WIDTH = 1024 * 1024 * args.vecwidth;
 
-  std::unique_ptr<double[]> c;
+  #if defined(_MSC_VER)
+    double* ptr = static_cast<double*>(::_aligned_malloc(VEC_WIDTH * sizeof(double), 64));
+    if (!ptr) {
+      std::cerr << "Failed to allocate memory" << std::endl;
+      exit(1);
+    }
+    std::unique_ptr<double[], void(*)(void*)> c(ptr, [](void* p) { ::_aligned_free(p); });
+  #else
+    std::unique_ptr<double[]> c;
+    c.reset(new (std::align_val_t(64)) double[VEC_WIDTH]);
+  #endif
+  
 
-  c.reset(new (std::align_val_t(64)) double[VEC_WIDTH]);
+
+    // Create a unique_ptr with a custom deleter that calls std::free
+
 
   std::cout << "Working memory size: " << args.vecwidth * sizeof(double) << "MB"
             << std::endl;

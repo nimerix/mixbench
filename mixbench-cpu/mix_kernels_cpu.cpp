@@ -15,11 +15,20 @@
 #include <vector>
 
 const auto base_omp_get_max_threads = omp_get_max_threads();
+#if defined(_MSC_VER)
+  #define NO_INLINE __declspec(noinline)
+  #define UNROLL_LOOPS 
+  using omp_index_t = int64_t;
+#else
+  #define NO_INLINE __attribute__((noinline))
+  #define UNROLL_LOOPS __attribute__((optimize("unroll-loops")))
+  using omp_index_t = size_t;
+#endif
 
 #ifdef BASELINE_IMPL
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block(Element* data) {
+Element NO_INLINE bench_block(Element* data) {
   Element sum = 0;
   Element f = data[0];
 
@@ -37,7 +46,7 @@ Element __attribute__((noinline)) bench_block(Element* data) {
 #else
 
 template <typename Element, size_t compute_iterations, size_t static_chunk_size>
-Element __attribute__((noinline)) bench_block(Element* data) {
+Element NO_INLINE bench_block(Element* data) {
   Element sum = 0;
 
   Element f[] = {data[0], data[1], data[2], data[3],
@@ -86,7 +95,7 @@ Element __attribute__((noinline)) bench_block(Element* data) {
 #endif
 
 template <typename Element, size_t compute_iterations>
-__attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
+UNROLL_LOOPS size_t bench(size_t len,
                                                        const Element seed1,
                                                        const Element seed2,
                                                        Element* src) {
@@ -94,7 +103,7 @@ __attribute__((optimize("unroll-loops"))) size_t bench(size_t len,
   constexpr size_t static_chunk_size = 4096;
 
 #pragma omp parallel for reduction(+ : sum) schedule(static)
-  for (size_t it_base = 0; it_base < len; it_base += static_chunk_size) {
+  for (omp_index_t it_base = 0; it_base < len; it_base += static_chunk_size) {
     sum += bench_block<Element, compute_iterations, static_chunk_size>(
         &src[it_base]);
   }
@@ -163,7 +172,7 @@ class ComputeSpace {
   template <typename T>
   size_t compute_ops() const {
     const auto total_elements = element_count<T>();
-    const long long computations =
+    const int64_t computations =
         total_elements            /* Vector length */
             * compute_iterations_ /* Core loop iteration count */
             * 2                   /* Flops per core loop iteration */
@@ -254,20 +263,20 @@ void runbench(double* c, size_t size) {
 
 // Variadic template helper to ease multiple configuration invocations
 template <unsigned int compute_iterations>
-void runbench_range(double* cd, long size) {
+void runbench_range(double* cd, int64_t size) {
   runbench<compute_iterations>(cd, size);
 }
 
 template <unsigned int j1, unsigned int j2, unsigned int... Args>
-void runbench_range(double* cd, long size) {
+void runbench_range(double* cd, int64_t size) {
   runbench_range<j1>(cd, size);
   runbench_range<j2, Args...>(cd, size);
 }
 
-void mixbenchCPU(double* c, size_t size) {
+void mixbenchCPU(double* c, omp_index_t size) {
 // Initialize data to zeros on memory by respecting 1st touch policy
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < size; i++)
+  for (omp_index_t i = 0; i < size; i++)
     c[i] = 0.0;
 
   std::cout << "--------------------------------------------"
